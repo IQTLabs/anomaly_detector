@@ -14,11 +14,13 @@ RUN pip3 install \
     torch \
     torchvision
 
-ARG uid=1000
-ARG gid=$uid
+# ARG uid=1000
+# ARG gid=$uid
+# ARG username=anom
+# RUN groupadd --gid $gid $username
+# RUN adduser -uid $uid -gid $gid $username
+
 ARG username=anom
-RUN groupadd --gid $gid $username
-RUN adduser -uid $uid -gid $gid $username
+RUN adduser --disabled-password $username
 USER $username
-SHELL ["/bin/bash", "-c"]
 WORKDIR /home/$username
