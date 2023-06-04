@@ -21,6 +21,7 @@ import torch
 import torchvision
 from PIL import Image
 from pathlib import Path
+import sklearn.decomposition
 
 class AnomalyDetector:
     """
@@ -56,6 +57,9 @@ class AnomalyDetector:
             self.cnn = torch.nn.DataParallel(self.cnn, device_ids)
         self.cnn.eval()
 
+        # Principal component analysis
+        self.pca = sklearn.decomposition.PCA()
+
         self.verbose = verbose
 
     def return_files(self, img_dir: Path) -> list:
@@ -70,12 +74,12 @@ class AnomalyDetector:
             print('return_files:', file_list)
         return file_list
 
-    def return_features(self, files: list, batchsize: int = 64) -> torch.Tensor:
+    def return_features(self, files: list, batchsize: int = 1024) -> torch.Tensor:
         """
         Tile the image in each file, generate a feature vector for each tile,
         and return the feature vectors for all images together in a tensor.
         """
-        transform = torchvision.transforms.Compose([
+        transform_tile = torchvision.transforms.Compose([
             torchvision.transforms.PILToTensor(),
             lambda x: x.to(self.device),
             lambda x: x.unfold(1, self.tile_height, self.stride_height),
@@ -83,17 +87,23 @@ class AnomalyDetector:
             lambda x: x.permute(1, 2, 0, 3, 4),
             lambda x: x.reshape(-1, *x.shape[-3:]),
         ])
-        resize = torchvision.transforms.Resize(
+        transform_format = torchvision.transforms.Compose([
+            lambda x: x / 255.,
+            torchvision.transforms.Normalize(
+                mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
+            ),
+            torchvision.transforms.Resize(
                 size=(self.cnn_input_height, self.cnn_input_width),
                 interpolation=torchvision.transforms.InterpolationMode.BICUBIC
-        )
+            ),
+        ])
         features = None
         for filepath in tqdm.tqdm(files, desc='Files'):
             im = Image.open(filepath).convert('RGB')
-            img = transform(im).to(self.device)
+            img = transform_tile(im)
             for batch in tqdm.tqdm(torch.split(img, batchsize, dim=0),
                                    desc='Tiles'):
-                batch_resized = resize(batch).float()
+                batch_resized = transform_format(batch).float()
                 with torch.set_grad_enabled(False):
                     partial_features = self.cnn(batch_resized).detach()
                 features = partial_features if features is None else \
@@ -105,6 +115,7 @@ class AnomalyDetector:
         train_files = self.return_files(train_img_dir)
         val_files = self.return_files(val_img_dir)
         train_features = self.return_features(train_files)
+        val_features = self.return_features(val_files)
 
 if __name__ == '__main__':
     ad = AnomalyDetector()
