@@ -33,7 +33,7 @@ class AnomalyDetector:
                  tile=None, tile_height=None, tile_width=None,
                  stride=None, stride_height=None, stride_width=None,
                  device=None, parallel=True, device_ids=None,
-                 pca_variance=0.95, verbose=0):
+                 pca_variance=0.95, threshold=None, verbose=0):
 
         # Tile (i.e., patch) size and stride
         tile_default = 32
@@ -63,6 +63,7 @@ class AnomalyDetector:
         self.pca = sklearn.decomposition.PCA(n_components=pca_variance,
                                              copy=True)
 
+        self.threshold = threshold
         self.verbose = verbose
 
     def return_files(self, img_dir: Path) -> list:
@@ -108,17 +109,20 @@ class AnomalyDetector:
                                    desc='Tiles'):
                 batch_resized = transform_format(batch).float()
                 with torch.set_grad_enabled(False):
-                    partial_features = self.cnn(batch_resized).detach()
+                    partial_features = self.cnn(batch_resized).detach().cpu()
                 features = partial_features if features is None else \
                            torch.cat((features, partial_features), dim=0)
         return features
 
-    def train(self, train_img_dir: Path = None, val_img_dir: Path = None):
+    def train(self, train_img_dir: Path = None, val_img_dir: Path = None,
+              auto_threshold=True):
 
         train_files = self.return_files(train_img_dir)
-        val_files = self.return_files(val_img_dir)
         train_features = self.return_features(train_files)
-        val_features = self.return_features(val_files)
+
+        if auto_threshold:
+            val_files = self.return_files(val_img_dir)
+            val_features = self.return_features(val_files)
 
 if __name__ == '__main__':
     ad = AnomalyDetector()
