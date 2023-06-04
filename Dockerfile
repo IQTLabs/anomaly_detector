@@ -12,13 +12,9 @@ RUN apt update && apt install -y \
     && rm -rf /var/lib/apt/lists/*
 RUN pip3 install \
     torch \
-    torchvision
-
-# ARG uid=1000
-# ARG gid=$uid
-# ARG username=anom
-# RUN groupadd --gid $gid $username
-# RUN adduser -uid $uid -gid $gid $username
+    torchvision \
+    scikit-learn
+#    jupyter
 
 ARG username=anom
 RUN adduser --disabled-password $username
