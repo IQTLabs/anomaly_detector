@@ -114,11 +114,33 @@ class AnomalyDetector:
                            torch.cat((features, partial_features), dim=0)
         return features
 
+    def pca_fit(self, features: torch.Tensor):
+        """
+        Fit principle component analysis model to reduce dimensionality
+        of feature vectors.
+        """
+        return self.pca.fit(features.numpy())
+
+    def return_shorts(self, features: torch.Tensor) -> torch.Tensor:
+        """
+        Reduce dimensionality of feature vectors using PCA model
+        """
+        short_features = torch.from_numpy(self.pca.transform(features.numpy()))
+        print(self.pca.mean_)
+        print(len(self.pca.mean_))
+        print(short_features.shape)
+        return None
+
     def train(self, train_img_dir: Path = None, val_img_dir: Path = None,
               auto_threshold=True):
+        """
+        Train the model, using folders of training and validation data
+        """
 
         train_files = self.return_files(train_img_dir)
         train_features = self.return_features(train_files)
+        self.pca_fit(train_features)
+        train_shorts = self.return_shorts(train_features)
 
         if auto_threshold:
             val_files = self.return_files(val_img_dir)
