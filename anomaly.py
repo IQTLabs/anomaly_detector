@@ -16,8 +16,8 @@
    limitations under the License.
 """
 
-import os
-import glob
+import torch
+import torchvision
 from pathlib import Path
 
 class AnomalyDetector:
@@ -41,6 +41,9 @@ class AnomalyDetector:
             stride_height, stride, stride_default]))
         self.stride_width = next(filter(non, [
             stride_width, stride, stride_default]))
+
+        # Convolutional neural net
+        self.cnn = torchvision.models.resnet18(pretrained=True)
 
         self.verbose = verbose
 
