@@ -32,7 +32,8 @@ class AnomalyDetector:
     def __init__(self,
                  tile=None, tile_height=None, tile_width=None,
                  stride=None, stride_height=None, stride_width=None,
-                 device=None, parallel=True, device_ids=None, verbose=0):
+                 device=None, parallel=True, device_ids=None,
+                 pca_variance=0.95, verbose=0):
 
         # Tile (i.e., patch) size and stride
         tile_default = 32
@@ -58,7 +59,8 @@ class AnomalyDetector:
         self.cnn.eval()
 
         # Principal component analysis
-        self.pca = sklearn.decomposition.PCA()
+        self.pca = sklearn.decomposition.PCA(n_components=pca_variance,
+                                             copy=True)
 
         self.verbose = verbose
 
