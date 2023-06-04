@@ -19,10 +19,30 @@
 """
 
 
-class anomaly:
+class AnomalyDetector:
     """
     ~~~ Computer Vision Anomaly Detection ~~~
     Based on: Napoletano, Piccoli, and Schettini.  Anomaly Detection in
     Nanofibrous Materials by CNN-Based Self-Similarity.  Sensors, 2018, 209.
     """
-    pass
+    def __init__(self,
+                 tile=None, tile_height=None, tile_width=None,
+                 stride=None, stride_height=None, stride_width=None):
+
+        # Tile (i.e., patch) size and stride
+        tile_default = 32
+        stride_default = 8
+        non = lambda x: x is not None
+        self.tile_height = next(filter(non, [tile_height, tile, tile_default]))
+        self.tile_width = next(filter(non, [tile_width, tile, tile_default]))
+        self.stride_height = next(filter(non, [
+            stride_height, stride, stride_default]))
+        self.stride_width = next(filter(non, [
+            stride_width, stride, stride_default]))
+
+
+    def train():
+        pass
+
+if __name__ == '__main__':
+    ad = AnomalyDetector(tile=77, tile_height=88)
