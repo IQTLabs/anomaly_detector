@@ -18,6 +18,7 @@
 
 import torch
 import torchvision
+from PIL import Image
 from pathlib import Path
 
 class AnomalyDetector:
@@ -44,6 +45,8 @@ class AnomalyDetector:
 
         # Convolutional neural net
         self.cnn = torchvision.models.resnet18(pretrained=True)
+        self.cnn_input_height = 320
+        self.cnn_input_width = 320
 
         self.verbose = verbose
 
@@ -59,11 +62,35 @@ class AnomalyDetector:
             print('return_files:', file_list)
         return file_list
 
-    def return_features(self):
-        pass
+    def return_features(self, files: list):
+        """
+        Tile the image in each file, generate a feature vector for each tile,
+        and return the feature vectors for all images together in a tensor.
+        """
+        transform = torchvision.transforms.Compose([
+            torchvision.transforms.PILToTensor(),
+            lambda x: x.unfold(1, self.tile_height, self.stride_height),
+            lambda x: x.unfold(2, self.tile_width, self.stride_width),
+            lambda x: x.permute(1, 2, 0, 3, 4),
+            lambda x: x.reshape(-1, *x.shape[-3:]),
+            torchvision.transforms.Resize(
+                size=(self.cnn_input_height, self.cnn_input_width),
+                interpolation=torchvision.transforms.InterpolationMode.BICUBIC
+            ),
+        ])
+        for filepath in files:
+            im = Image.open(filepath).convert('RGB')
+            img = transform(im)
+            print(im.size)
+            print(type(img))
+            print(img.size())
+        return None
 
     def train(self, train_img_dir: Path = None, val_img_dir: Path = None):
-        self.return_files(train_img_dir)
+
+        train_files = self.return_files(train_img_dir)
+        val_files = self.return_files(val_img_dir)
+        train_features = self.return_features(train_files)
 
 if __name__ == '__main__':
     ad = AnomalyDetector()
