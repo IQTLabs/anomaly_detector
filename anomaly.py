@@ -120,15 +120,17 @@ class AnomalyDetector:
         """
         Optionally fit principal component analysis (PCA) model,
         and use it to reduce dimensionality of feature vectors.
+        Features are normalized after dimensionality reduction.
         """
-        features = 
+        features = features.numpy()
         if fit:
-            reduced = self.pca.fit_transform(features.numpy())
-            scaled = self.pca_scaler.fit_transform(reduced)
+            features = self.pca.fit_transform(features)
+            features = self.pca_scaler.fit_transform(features)
         else:
-            reduced = self.pca.transform(features.numpy())
-        
-        return None
+            features = self.pca.transform(features)
+            features = self.pca_scaler.transform(features)
+        features = torch.from_numpy(features)
+        return features
 
     def train(self, train_img_dir: Path = None, val_img_dir: Path = None,
               auto_threshold=True):
