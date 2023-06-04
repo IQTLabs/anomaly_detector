@@ -54,7 +54,8 @@ class AnomalyDetector:
                                    else 'cuda:0' if torch.cuda.is_available()
                                    else 'cpu')
         self.cnn = self.cnn.to(self.device)
-        if parallel and torch.cuda.device_count() > 1:
+        if parallel and torch.cuda.device_count() > 1 \
+           and self.device != torch.device('cpu'):
             self.cnn = torch.nn.DataParallel(self.cnn, device_ids)
         self.cnn.eval()
 
