@@ -30,7 +30,7 @@ class AnomalyDetector:
     def __init__(self,
                  tile=None, tile_height=None, tile_width=None,
                  stride=None, stride_height=None, stride_width=None,
-                 verbose=0):
+                 device=None, parallel=True, device_ids=None, verbose=0):
 
         # Tile (i.e., patch) size and stride
         tile_default = 32
@@ -47,6 +47,13 @@ class AnomalyDetector:
         self.cnn = torchvision.models.resnet18(pretrained=True)
         self.cnn_input_height = 320
         self.cnn_input_width = 320
+        self.device = torch.device(device if device is not None
+                                   else 'cuda:0' if torch.cuda.is_available()
+                                   else 'cpu')
+        self.cnn = self.cnn.to(self.device)
+        if parallel and torch.cuda.device_count() > 1:
+            self.cnn = torch.nn.DataParallel(self.cnn, device_ids)
+        self.cnn.eval()
 
         self.verbose = verbose
 
@@ -62,7 +69,7 @@ class AnomalyDetector:
             print('return_files:', file_list)
         return file_list
 
-    def return_features(self, files: list):
+    def return_features(self, files: list, batchsize: int = 64) -> torch.Tensor:
         """
         Tile the image in each file, generate a feature vector for each tile,
         and return the feature vectors for all images together in a tensor.
@@ -73,17 +80,31 @@ class AnomalyDetector:
             lambda x: x.unfold(2, self.tile_width, self.stride_width),
             lambda x: x.permute(1, 2, 0, 3, 4),
             lambda x: x.reshape(-1, *x.shape[-3:]),
-            torchvision.transforms.Resize(
+        ])
+        resize = torchvision.transforms.Resize(
                 size=(self.cnn_input_height, self.cnn_input_width),
                 interpolation=torchvision.transforms.InterpolationMode.BICUBIC
-            ),
-        ])
+        )
+        features = None
         for filepath in files:
             im = Image.open(filepath).convert('RGB')
             img = transform(im)
+            for batch in torch.split(img, batchsize, dim=0):
+                print(batch.size())
+                batch_resized = resize(batch).float().to(self.device)
+                print(batch_resized.type())
+                with torch.set_grad_enabled(False):
+                    partial_features = self.cnn(batch_resized).detach()
+                print(partial_features.size())
+                if features is None:
+                    features = partial_features
+                else:
+                    features = torch.cat((features, partial_features), dim=0)
             print(im.size)
             print(type(img))
             print(img.size())
+        print(self.device)
+        print(features.size())
         return None
 
     def train(self, train_img_dir: Path = None, val_img_dir: Path = None):
