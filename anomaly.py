@@ -19,6 +19,7 @@
 import tqdm
 import torch
 import torchvision
+import numpy as np
 from PIL import Image
 from pathlib import Path
 import sklearn.decomposition
@@ -69,7 +70,8 @@ class AnomalyDetector:
 
         # K-Means clustering
         self.kmeans = sklearn.cluster.KMeans(
-            n_clusters=kmeans_clusters, init='k-means++', n_init=kmeans_trials)
+            n_clusters=kmeans_clusters, init='k-means++', n_init=kmeans_trials,
+            verbose=verbose)
 
         self.threshold = threshold
         self.verbose = verbose
@@ -122,7 +124,7 @@ class AnomalyDetector:
                            torch.cat((features, partial_features), dim=0)
         return features
 
-    def reduce_features(self, features: torch.Tensor, fit=False) -> torch.Tensor:
+    def reduce_features(self, features: torch.Tensor, fit: bool = False) -> torch.Tensor:
         """
         Optionally fit principal component analysis (PCA) model,
         and use it to reduce dimensionality of feature vectors.
@@ -135,11 +137,16 @@ class AnomalyDetector:
         else:
             features = self.pca.transform(features)
             features = self.pca_scaler.transform(features)
-        features = torch.from_numpy(features)
+        #features = torch.from_numpy(features)
         return features
 
-    def return_centroids():
-        pass
+    def return_distances(self, features: np.ndarray, fit: bool = False) -> np.ndarray:
+        if fit:
+            distances = self.kmeans.fit_transform(features)
+        else:
+            distances = self.kmeans.transform(features)
+        distances = np.amin(distances, axis=1)
+        return distances
 
     def train(self, train_img_dir: Path = None, val_img_dir: Path = None,
               auto_threshold=True):
@@ -150,11 +157,13 @@ class AnomalyDetector:
         train_files = self.return_files(train_img_dir)
         train_features = self.return_features(train_files)
         train_features = self.reduce_features(train_features, fit=True)
+        train_distances = self.return_distances(train_features, fit=True)
 
         if auto_threshold:
             val_files = self.return_files(val_img_dir)
             val_features = self.return_features(val_files)
             val_features = self.reduce_features(val_features)
+            val_distances = self.return_distances(val_features)
 
 if __name__ == '__main__':
     ad = AnomalyDetector()
