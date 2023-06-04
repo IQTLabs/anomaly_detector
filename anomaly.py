@@ -71,7 +71,7 @@ class AnomalyDetector:
         # K-Means clustering
         self.kmeans = sklearn.cluster.KMeans(
             n_clusters=kmeans_clusters, init='k-means++', n_init=kmeans_trials,
-            verbose=verbose)
+            verbose=max(0, verbose - 1))
 
         self.threshold = threshold
         self.verbose = verbose
@@ -141,12 +141,28 @@ class AnomalyDetector:
         return features
 
     def return_distances(self, features: np.ndarray, fit: bool = False) -> np.ndarray:
+        """
+        Optionally fit k-means clustering centroids, and return distance
+        to nearest centroid from each feature vector.
+        """
         if fit:
             distances = self.kmeans.fit_transform(features)
         else:
             distances = self.kmeans.transform(features)
         distances = np.amin(distances, axis=1)
         return distances
+
+    def set_threshold(self, distances: np.ndarray, zscore: float = 0.95) -> float:
+        """
+        Set threshold for anomalies
+        """
+        mean = np.mean(distances)
+        stdev = np.std(distances)
+        threshold = mean + zscore * stdev
+        if self.verbose >= 1:
+            print('Threshold stats:', mean, stdev, threshold)
+        self.threshold = threshold
+        return threshold
 
     def train(self, train_img_dir: Path = None, val_img_dir: Path = None,
               auto_threshold=True):
@@ -164,7 +180,8 @@ class AnomalyDetector:
             val_features = self.return_features(val_files)
             val_features = self.reduce_features(val_features)
             val_distances = self.return_distances(val_features)
+            self.set_threshold(val_distances)
 
 if __name__ == '__main__':
-    ad = AnomalyDetector()
+    ad = AnomalyDetector(kmeans_clusters=100, verbose=1)
     ad.train(Path('../dataset/train'), Path('../dataset/val'))
