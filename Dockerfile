@@ -13,7 +13,8 @@ RUN apt update && apt install -y \
 RUN pip3 install \
     torch \
     torchvision \
-    scikit-learn
+    scikit-learn \
+    tqdm
 #    jupyter
 
 ARG username=anom

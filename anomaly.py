@@ -16,6 +16,7 @@
    limitations under the License.
 """
 
+import tqdm
 import torch
 import torchvision
 from PIL import Image
@@ -76,6 +77,7 @@ class AnomalyDetector:
         """
         transform = torchvision.transforms.Compose([
             torchvision.transforms.PILToTensor(),
+            lambda x: x.to(self.device),
             lambda x: x.unfold(1, self.tile_height, self.stride_height),
             lambda x: x.unfold(2, self.tile_width, self.stride_width),
             lambda x: x.permute(1, 2, 0, 3, 4),
@@ -86,26 +88,17 @@ class AnomalyDetector:
                 interpolation=torchvision.transforms.InterpolationMode.BICUBIC
         )
         features = None
-        for filepath in files:
+        for filepath in tqdm.tqdm(files, desc='Files'):
             im = Image.open(filepath).convert('RGB')
-            img = transform(im)
-            for batch in torch.split(img, batchsize, dim=0):
-                print(batch.size())
-                batch_resized = resize(batch).float().to(self.device)
-                print(batch_resized.type())
+            img = transform(im).to(self.device)
+            for batch in tqdm.tqdm(torch.split(img, batchsize, dim=0),
+                                   desc='Tiles'):
+                batch_resized = resize(batch).float()
                 with torch.set_grad_enabled(False):
                     partial_features = self.cnn(batch_resized).detach()
-                print(partial_features.size())
-                if features is None:
-                    features = partial_features
-                else:
-                    features = torch.cat((features, partial_features), dim=0)
-            print(im.size)
-            print(type(img))
-            print(img.size())
-        print(self.device)
-        print(features.size())
-        return None
+                features = partial_features if features is None else \
+                           torch.cat((features, partial_features), dim=0)
+        return features
 
     def train(self, train_img_dir: Path = None, val_img_dir: Path = None):
 
