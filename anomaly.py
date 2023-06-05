@@ -160,28 +160,54 @@ class AnomalyDetector:
         stdev = np.std(distances)
         threshold = mean + zscore * stdev
         if self.verbose >= 1:
-            print('Threshold stats:', mean, stdev, threshold)
+            print('Threshold stats:')
+            print('    Mean  :', mean)
+            print('    StDev :', stdev)
+            print('    Thresh:', threshold)
         self.threshold = threshold
         return threshold
 
-    def train(self, train_img_dir: Path = None, val_img_dir: Path = None,
+    def return_masks(self, distances: np.ndarray) -> np.ndarray:
+        """
+        Returns binary mask, with 0 indicating normal and 1 indicating anomaly
+        """
+        masks = (distances >= self.threshold).astype(int)
+        print(masks)
+        if self.verbose >= 1:
+            print('Mask stats: %i out of %i tiles are anomalies (%.2f pct)'
+                  % (np.sum(masks), np.size(masks),
+                     100 * np.sum(masks) / np.size(masks)))
+        return masks
+
+    def train(self, train_img_dir: Path, val_img_dir: Path = None,
               auto_threshold=True):
         """
         Train the model, using folders of training and validation data
         """
-
         train_files = self.return_files(train_img_dir)
         train_features = self.return_features(train_files)
         train_features = self.reduce_features(train_features, fit=True)
         train_distances = self.return_distances(train_features, fit=True)
 
-        if auto_threshold:
+        if val_img_dir is not None and auto_threshold:
             val_files = self.return_files(val_img_dir)
             val_features = self.return_features(val_files)
             val_features = self.reduce_features(val_features)
             val_distances = self.return_distances(val_features)
             self.set_threshold(val_distances)
 
+    def test(self, test_img_dir: Path, output_img_dir: Path = None):
+        """
+        Run inference with the model
+        """
+        test_files = self.return_files(test_img_dir)
+        test_features = self.return_features(test_files)
+        test_features = self.reduce_features(test_features)
+        test_distances = self.return_distances(test_features)
+        test_masks = self.return_masks(test_distances)
+
+
 if __name__ == '__main__':
-    ad = AnomalyDetector(kmeans_clusters=100, verbose=1)
+    ad = AnomalyDetector(verbose=1)
     ad.train(Path('../dataset/train'), Path('../dataset/val'))
+    ad.test(Path('../dataset/test'))
