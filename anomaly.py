@@ -36,8 +36,9 @@ class AnomalyDetector:
                  tile=None, tile_height=None, tile_width=None,
                  stride=None, stride_height=None, stride_width=None,
                  device=None, parallel=True, device_ids=None,
-                 pca_variance=0.95, kmeans_clusters=10, kmeans_trials=10,
-                 threshold=None, verbose=0):
+                 cnn_batchsize=1024, pca_variance=0.95,
+                 kmeans_clusters=10, kmeans_trials=10,
+                 threshold=None, zscore=0.95, verbose=0):
 
         # Tile (i.e., patch) size and stride
         tile_default = 32
@@ -62,6 +63,7 @@ class AnomalyDetector:
            and self.device != torch.device('cpu'):
             self.cnn = torch.nn.DataParallel(self.cnn, device_ids)
         self.cnn.eval()
+        self.cnn_batchsize = cnn_batchsize
 
         # Principal component analysis
         self.pca = sklearn.decomposition.PCA(
@@ -74,6 +76,7 @@ class AnomalyDetector:
             verbose=max(0, verbose - 1))
 
         self.threshold = threshold
+        self.zscore = zscore
         self.verbose = verbose
 
     def return_files(self, img_dir: Path) -> list:
@@ -88,7 +91,7 @@ class AnomalyDetector:
             print('return_files:', file_list)
         return file_list
 
-    def return_features(self, files: list, batchsize: int = 1024) -> torch.Tensor:
+    def return_features(self, files: list) -> torch.Tensor:
         """
         Tile the image in each file, generate a feature vector for each tile,
         and return the feature vectors for all images together in a tensor.
@@ -115,7 +118,7 @@ class AnomalyDetector:
         for filepath in tqdm.tqdm(files, desc='Files'):
             im = Image.open(filepath).convert('RGB')
             img = transform_tile(im)
-            for batch in tqdm.tqdm(torch.split(img, batchsize, dim=0),
+            for batch in tqdm.tqdm(torch.split(img, self.cnn_batchsize, dim=0),
                                    desc='Tiles'):
                 batch_resized = transform_format(batch).float()
                 with torch.set_grad_enabled(False):
@@ -152,13 +155,13 @@ class AnomalyDetector:
         distances = np.amin(distances, axis=1)
         return distances
 
-    def set_threshold(self, distances: np.ndarray, zscore: float = 0.95) -> float:
+    def set_threshold(self, distances: np.ndarray) -> float:
         """
         Set threshold for anomalies
         """
         mean = np.mean(distances)
         stdev = np.std(distances)
-        threshold = mean + zscore * stdev
+        threshold = mean + self.zscore * stdev
         if self.verbose >= 1:
             print('Threshold stats:')
             print('    Mean  :', mean)
@@ -169,7 +172,8 @@ class AnomalyDetector:
 
     def return_masks(self, distances: np.ndarray) -> np.ndarray:
         """
-        Returns binary mask, with 0 indicating normal and 1 indicating anomaly
+        Return per-tile binary masks, with zero indicating normal
+        and one indicating anomaly.
         """
         masks = (distances >= self.threshold).astype(int)
         print(masks)
@@ -210,4 +214,4 @@ class AnomalyDetector:
 if __name__ == '__main__':
     ad = AnomalyDetector(verbose=1)
     ad.train(Path('../dataset/train'), Path('../dataset/val'))
-    ad.test(Path('../dataset/test'))
+    ad.test(Path('../dataset/test'), Path('../dataset/output'))
