@@ -39,6 +39,7 @@ class AnomalyDetector:
                  device=None, parallel=True, device_ids=None,
                  cnn_batchsize=1024, pca_variance=0.95,
                  kmeans_clusters=10, kmeans_trials=10, kmeans_neighbors=1,
+                 kmeans_random=None,
                  threshold=None, zscore=1.645, cdf=0.95,
                  verbose=0):
 
@@ -75,7 +76,7 @@ class AnomalyDetector:
         # K-Means clustering
         self.kmeans = sklearn.cluster.KMeans(
             n_clusters=kmeans_clusters, init='k-means++', n_init=kmeans_trials,
-            verbose=max(0, verbose - 1))
+            verbose=max(0, verbose - 1), random_state=kmeans_random)
         self.kmeans_neighbors = kmeans_neighbors
 
         self.threshold = threshold
