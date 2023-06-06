@@ -210,9 +210,12 @@ class AnomalyDetector:
         for meta in metas:
             end_idx = start_idx + meta['tiles']
             pixelmap = self.return_pixelmap(data[start_idx:end_idx], meta)
+            mask = self.return_mask(pixelmap)
             start_idx = end_idx
 
-            print(pixelmap)
+            print(np.max(mask))
+            print(np.sum(mask))
+            print(mask.size)
 
     def return_pixelmap(self, data: np.ndarray, meta: dict) -> torch.Tensor:
         """
@@ -244,20 +247,20 @@ class AnomalyDetector:
         """
         Returns binary mask, with zero indiciating normal and one indicating an anomaly.
         """
-        mask = (pixelmap >= self.threshold).astype(int)
+        mask = (pixelmap >= self.threshold).astype(int) * 255
         return mask
 
-    def anomolous_tiles(self, distances: np.ndarray) -> np.ndarray:
+    def anomalous_tiles(self, distances: np.ndarray) -> np.ndarray:
         """
         Identify anomalous tiles.  Note that anomaly percentage
-        will generally vary from the pixel mask.
+        for tiles will generally not be the same as for pixels.
         """
-        flags = (distances >= self.threshold)#.astype(int)
+        flags = (distances >= self.threshold)
         if self.verbose >= 1:
-            print('Mask stats: %i out of %i tiles are anomalies (%.2f pct)'
-                  % (np.sum(masks), np.size(masks),
-                     100 * np.sum(masks) / np.size(masks)))
-        return masks
+            print('Tile stats: %i out of %i tiles are anomalies (%.2f pct)'
+                  % (np.sum(flags), np.size(flags),
+                     100 * np.sum(flags) / np.size(flags)))
+        return flags
 
     def train(self, train_img_dir: Path, val_img_dir: Path = None,
               auto_threshold=True):
@@ -285,7 +288,7 @@ class AnomalyDetector:
             test_files, metadata=True)
         test_features = self.reduce_features(test_features)
         test_distances = self.return_distances(test_features)
-        self.anomolous_tile_count(test_distances)
+        self.anomalous_tiles(test_distances)
         if output_img_dir is not None:
             test_pixelmaps = self.return_pixelmaps(
                 test_distances, test_metadata, output_img_dir)
