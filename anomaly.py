@@ -91,11 +91,12 @@ class AnomalyDetector:
             file_list = [img_dir]
         elif img_dir.is_dir():
             file_list = [x for x in img_dir.glob('**/*') if x.is_file()]
+            file_list = sorted(file_list)
         if self.verbose >= 2:
             print('return_files:', file_list)
         return file_list
 
-    def return_features(self, files: list) -> torch.Tensor:
+    def return_features(self, files: list, metadata: bool = False) -> torch.Tensor:
         """
         Tile the image in each file, generate a feature vector for each tile,
         and return the feature vectors for all images together in a tensor.
@@ -119,9 +120,15 @@ class AnomalyDetector:
             ),
         ])
         features = None
+        metas = []
         for filepath in tqdm.tqdm(files, desc='Files'):
             im = Image.open(filepath).convert('RGB')
             img = transform_tile(im)
+            if metadata:
+                metas.append({'path': filepath,
+                              'height': im.height,
+                              'width': im.width,
+                              'tiles': img.size(0)})
             for batch in tqdm.tqdm(torch.split(img, self.cnn_batchsize, dim=0),
                                    desc='Tiles'):
                 batch_resized = transform_format(batch).float()
@@ -129,7 +136,10 @@ class AnomalyDetector:
                     partial_features = self.cnn(batch_resized).detach().cpu()
                 features = partial_features if features is None else \
                            torch.cat((features, partial_features), dim=0)
-        return features
+        if metadata:
+            return features, metas
+        else:
+            return features
 
     def reduce_features(self, features: torch.Tensor, fit: bool = False) -> torch.Tensor:
         """
@@ -191,7 +201,7 @@ class AnomalyDetector:
         self.threshold = threshold
         return threshold
 
-    def return_masks(self, distances: np.ndarray) -> np.ndarray:
+    def anomolous_tile_count(self, distances: np.ndarray) -> np.ndarray:
         """
         Return per-tile binary masks, with zero indicating normal
         and one indicating anomaly.  Note that anomaly percentage
@@ -227,10 +237,10 @@ class AnomalyDetector:
         Run inference with the model
         """
         test_files = self.return_files(test_img_dir)
-        test_features = self.return_features(test_files)
+        test_features, metadata = self.return_features(
+            test_files, metadata=True)
         test_features = self.reduce_features(test_features)
         test_distances = self.return_distances(test_features)
-        test_masks = self.return_masks(test_distances)
 
 
 if __name__ == '__main__':
