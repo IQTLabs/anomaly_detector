@@ -201,6 +201,24 @@ class AnomalyDetector:
         self.threshold = threshold
         return threshold
 
+    def return_pixelmaps(self, data: np.ndarray, metas: list):
+        """
+        Map per-tile data values back to image pixels for multiple images,
+        using averages of overlapping tiles.
+        """
+        start_idx = 0
+        for meta in metas:
+            end_idx = start_idx + meta['tiles']
+            pixelmap = self.return_pixelmap(data[start_idx:end_idx], meta)
+            start_idx = end_idx
+
+    def return_pixelmap(self, data: np.ndarray, meta: dict):
+        """
+        Map per-tile data values back to image pixels for a single image,
+        using averages of overlapping tiles.
+        """
+        print()
+
     def anomolous_tile_count(self, distances: np.ndarray) -> np.ndarray:
         """
         Return per-tile binary masks, with zero indicating normal
@@ -237,10 +255,13 @@ class AnomalyDetector:
         Run inference with the model
         """
         test_files = self.return_files(test_img_dir)
-        test_features, metadata = self.return_features(
+        test_features, test_metadata = self.return_features(
             test_files, metadata=True)
         test_features = self.reduce_features(test_features)
         test_distances = self.return_distances(test_features)
+        self.anomolous_tile_count(test_distances)
+        print(test_metadata)
+        test_pixelmaps = self.return_pixelmaps(test_distances, test_metadata)
 
 
 if __name__ == '__main__':
