@@ -37,7 +37,7 @@ class AnomalyDetector:
                  stride=None, stride_height=None, stride_width=None,
                  device=None, parallel=True, device_ids=None,
                  cnn_batchsize=1024, pca_variance=0.95,
-                 kmeans_clusters=10, kmeans_trials=10,
+                 kmeans_clusters=10, kmeans_trials=10, kmeans_neighbors=1,
                  threshold=None, zscore=0.95, verbose=0):
 
         # Tile (i.e., patch) size and stride
@@ -74,6 +74,7 @@ class AnomalyDetector:
         self.kmeans = sklearn.cluster.KMeans(
             n_clusters=kmeans_clusters, init='k-means++', n_init=kmeans_trials,
             verbose=max(0, verbose - 1))
+        self.kmeans_neighbors = kmeans_neighbors
 
         self.threshold = threshold
         self.zscore = zscore
@@ -152,7 +153,11 @@ class AnomalyDetector:
             distances = self.kmeans.fit_transform(features)
         else:
             distances = self.kmeans.transform(features)
-        distances = np.amin(distances, axis=1)
+        if self.kmeans_neighbors == 1:
+            distances = np.amin(distances, axis=1)
+        else:
+            distances = np.sort(distances, axis=1)
+            distances = np.mean(distances[:, :self.kmeans_neighbors], axis=1)
         return distances
 
     def set_threshold(self, distances: np.ndarray) -> float:
