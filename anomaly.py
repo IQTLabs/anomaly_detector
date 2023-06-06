@@ -38,7 +38,7 @@ class AnomalyDetector:
                  device=None, parallel=True, device_ids=None,
                  cnn_batchsize=1024, pca_variance=0.95,
                  kmeans_clusters=10, kmeans_trials=10, kmeans_neighbors=1,
-                 threshold=None, zscore=0.95, verbose=0):
+                 threshold=None, zscore=1.645, verbose=0):
 
         # Tile (i.e., patch) size and stride
         tile_default = 32
