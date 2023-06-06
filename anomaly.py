@@ -213,9 +213,9 @@ class AnomalyDetector:
             mask = self.return_mask(pixelmap)
             start_idx = end_idx
 
-            print(np.max(mask))
-            print(np.sum(mask))
-            print(mask.size)
+            img = Image.fromarray(mask, mode='1')
+            path = img_dir / meta['path'].name
+            img.save(path)
 
     def return_pixelmap(self, data: np.ndarray, meta: dict) -> torch.Tensor:
         """
@@ -240,14 +240,15 @@ class AnomalyDetector:
         numerator = torch.nn.functional.fold(numerator_unfolded, (meta['height'], meta['width']), (self.tile_height, self.tile_width), stride=(self.stride_height, self.stride_width)).squeeze(0)
         denominator = torch.nn.functional.fold(denominator_unfolded, (meta['height'], meta['width']), (self.tile_height, self.tile_width), stride=(self.stride_height, self.stride_width)).squeeze(0)
         average = torch.nan_to_num(numerator / denominator, nan=0)
-        average = average.numpy()
+        average = average.squeeze().numpy()
         return average
 
     def return_mask(self, pixelmap):
         """
-        Returns binary mask, with zero indiciating normal and one indicating an anomaly.
+        Returns binary mask, with zero indiciating normal
+        and one indicating an anomaly.
         """
-        mask = (pixelmap >= self.threshold).astype(int) * 255
+        mask = (pixelmap >= self.threshold)
         return mask
 
     def anomalous_tiles(self, distances: np.ndarray) -> np.ndarray:
