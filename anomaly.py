@@ -16,6 +16,7 @@
    limitations under the License.
 """
 
+import math
 import tqdm
 import torch
 import torchvision
@@ -38,7 +39,8 @@ class AnomalyDetector:
                  device=None, parallel=True, device_ids=None,
                  cnn_batchsize=1024, pca_variance=0.95,
                  kmeans_clusters=10, kmeans_trials=10, kmeans_neighbors=1,
-                 threshold=None, zscore=1.645, verbose=0):
+                 threshold=None, zscore=1.645, cdf=0.95,
+                 verbose=0):
 
         # Tile (i.e., patch) size and stride
         tile_default = 32
@@ -78,6 +80,7 @@ class AnomalyDetector:
 
         self.threshold = threshold
         self.zscore = zscore
+        self.cdf = cdf
         self.verbose = verbose
 
     def return_files(self, img_dir: Path) -> list:
@@ -160,9 +163,9 @@ class AnomalyDetector:
             distances = np.mean(distances[:, :self.kmeans_neighbors], axis=1)
         return distances
 
-    def set_threshold(self, distances: np.ndarray) -> float:
+    def set_threshold_zscore(self, distances: np.ndarray) -> float:
         """
-        Set threshold for anomalies
+        Set threshold for anomalies using z-score
         """
         mean = np.mean(distances)
         stdev = np.std(distances)
@@ -172,6 +175,19 @@ class AnomalyDetector:
             print('    Mean  :', mean)
             print('    StDev :', stdev)
             print('    Thresh:', threshold)
+        self.threshold = threshold
+        return threshold
+
+    def set_threshold_cdf(self, distances: np.ndarray) -> float:
+        """
+        Set threshold for anomalies using cumulative distribution function
+        """
+        count = np.size(distances)
+        distances = np.sort(distances)
+        threshold_index = min(math.floor(self.cdf * count), count - 1)
+        threshold = distances[threshold_index]
+        if self.verbose >= 1:
+            print('Threshold:', threshold)
         self.threshold = threshold
         return threshold
 
@@ -203,7 +219,7 @@ class AnomalyDetector:
             val_features = self.return_features(val_files)
             val_features = self.reduce_features(val_features)
             val_distances = self.return_distances(val_features)
-            self.set_threshold(val_distances)
+            self.set_threshold_cdf(val_distances)
 
     def test(self, test_img_dir: Path, output_img_dir: Path = None):
         """
@@ -219,4 +235,4 @@ class AnomalyDetector:
 if __name__ == '__main__':
     ad = AnomalyDetector(verbose=1)
     ad.train(Path('../dataset/train'), Path('../dataset/val'))
-    ad.test(Path('../dataset/test'), Path('../dataset/output'))
+    ad.test(Path('../dataset/test1'), Path('../dataset/output'))
