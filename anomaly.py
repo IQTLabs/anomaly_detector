@@ -206,6 +206,7 @@ class AnomalyDetector:
         Map per-tile data values back to image pixels for multiple images,
         using averages of overlapping tiles.
         """
+        img_dir.mkdir(parents=True, exist_ok=True)
         start_idx = 0
         for meta in metas:
             end_idx = start_idx + meta['tiles']
