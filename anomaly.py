@@ -103,7 +103,7 @@ class AnomalyDetector:
         """
         transform_tile = torchvision.transforms.Compose([
             torchvision.transforms.PILToTensor(),
-            lambda x: x.to(self.device),
+            lambda x: x.to(self.device).float(),
             lambda x: x.unfold(1, self.tile_height, self.stride_height),
             lambda x: x.unfold(2, self.tile_width, self.stride_width),
             lambda x: x.permute(1, 2, 0, 3, 4),
@@ -131,7 +131,7 @@ class AnomalyDetector:
                               'tiles': img.size(0)})
             for batch in tqdm.tqdm(torch.split(img, self.cnn_batchsize, dim=0),
                                    desc='Tiles'):
-                batch_resized = transform_format(batch).float()
+                batch_resized = transform_format(batch)
                 with torch.set_grad_enabled(False):
                     partial_features = self.cnn(batch_resized).detach().cpu()
                 features = partial_features if features is None else \
@@ -217,7 +217,30 @@ class AnomalyDetector:
         Map per-tile data values back to image pixels for a single image,
         using averages of overlapping tiles.
         """
+        # Unfolded: batch=1, channels=1, tile_height, tile_width, count_height, count_width
+        count_height = (meta['height'] - self.tile_height) \
+                       // self.stride_height + 1
+        count_width = (meta['width'] - self.tile_width) \
+                      // self.stride_width + 1
+        canvas_unfolded = torch.zeros((
+            1, 1, self.tile_height, self.tile_width,
+            count_height, count_width))
+        datagrid = torch.from_numpy(data).reshape((
+            1, 1, 1, 1, count_height, count_width))
+        numerator_unfolded = canvas_unfolded + datagrid
+        denominator_unfolded = canvas_unfolded + 1
+        numerator_unfolded = numerator_unfolded.reshape(1, 1 * self.tile_height * self.tile_width, count_height * count_width)
+        denominator_unfolded = denominator_unfolded.reshape(1, 1 * self.tile_height * self.tile_width, count_height * count_width)
+        numerator = torch.nn.functional.fold(numerator_unfolded, (meta['height'], meta['width']), (self.tile_height, self.tile_width), stride=(self.stride_height, self.stride_width)).squeeze(0)
+        denominator = torch.nn.functional.fold(denominator_unfolded, (meta['height'], meta['width']), (self.tile_height, self.tile_width), stride=(self.stride_height, self.stride_width)).squeeze(0)
         print()
+        print(count_height, count_width)
+        print('canvas_unfolded', canvas_unfolded.shape)
+        print('datagrid', datagrid.shape)
+        print('numerator_unfolded', numerator_unfolded.shape)
+        print('denominator_unfolded', denominator_unfolded.shape)
+        print('numerator', numerator.shape)
+        print('denominator', denominator.shape)
 
     def anomolous_tile_count(self, distances: np.ndarray) -> np.ndarray:
         """
