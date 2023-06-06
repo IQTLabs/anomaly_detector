@@ -194,7 +194,8 @@ class AnomalyDetector:
     def return_masks(self, distances: np.ndarray) -> np.ndarray:
         """
         Return per-tile binary masks, with zero indicating normal
-        and one indicating anomaly.
+        and one indicating anomaly.  Note that anomaly percentage
+        may vary from per-pixel anomaly detection.
         """
         masks = (distances >= self.threshold).astype(int)
         print(masks)
@@ -235,4 +236,4 @@ class AnomalyDetector:
 if __name__ == '__main__':
     ad = AnomalyDetector(verbose=1)
     ad.train(Path('../dataset/train'), Path('../dataset/val'))
-    ad.test(Path('../dataset/test1'), Path('../dataset/output'))
+    ad.test(Path('../dataset/test'), Path('../dataset/output'))
