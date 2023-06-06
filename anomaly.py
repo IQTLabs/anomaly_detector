@@ -201,7 +201,7 @@ class AnomalyDetector:
         self.threshold = threshold
         return threshold
 
-    def return_pixelmaps(self, data: np.ndarray, metas: list):
+    def return_pixelmaps(self, data: np.ndarray, metas: list, img_dir: Path):
         """
         Map per-tile data values back to image pixels for multiple images,
         using averages of overlapping tiles.
@@ -212,12 +212,15 @@ class AnomalyDetector:
             pixelmap = self.return_pixelmap(data[start_idx:end_idx], meta)
             start_idx = end_idx
 
-    def return_pixelmap(self, data: np.ndarray, meta: dict):
+            print(pixelmap)
+
+    def return_pixelmap(self, data: np.ndarray, meta: dict) -> torch.Tensor:
         """
         Map per-tile data values back to image pixels for a single image,
         using averages of overlapping tiles.
         """
-        # Unfolded: batch=1, channels=1, tile_height, tile_width, count_height, count_width
+        # Unfolded: (batch=1, channels=1, tile_height, tile_width,
+        #            count_height, count_width)
         count_height = (meta['height'] - self.tile_height) \
                        // self.stride_height + 1
         count_width = (meta['width'] - self.tile_width) \
@@ -233,23 +236,23 @@ class AnomalyDetector:
         denominator_unfolded = denominator_unfolded.reshape(1, 1 * self.tile_height * self.tile_width, count_height * count_width)
         numerator = torch.nn.functional.fold(numerator_unfolded, (meta['height'], meta['width']), (self.tile_height, self.tile_width), stride=(self.stride_height, self.stride_width)).squeeze(0)
         denominator = torch.nn.functional.fold(denominator_unfolded, (meta['height'], meta['width']), (self.tile_height, self.tile_width), stride=(self.stride_height, self.stride_width)).squeeze(0)
-        print()
-        print(count_height, count_width)
-        print('canvas_unfolded', canvas_unfolded.shape)
-        print('datagrid', datagrid.shape)
-        print('numerator_unfolded', numerator_unfolded.shape)
-        print('denominator_unfolded', denominator_unfolded.shape)
-        print('numerator', numerator.shape)
-        print('denominator', denominator.shape)
+        average = torch.nan_to_num(numerator / denominator, nan=0)
+        average = average.numpy()
+        return average
 
-    def anomolous_tile_count(self, distances: np.ndarray) -> np.ndarray:
+    def return_mask(self, pixelmap):
         """
-        Return per-tile binary masks, with zero indicating normal
-        and one indicating anomaly.  Note that anomaly percentage
-        may vary from per-pixel anomaly detection.
+        Returns binary mask, with zero indiciating normal and one indicating an anomaly.
         """
-        masks = (distances >= self.threshold).astype(int)
-        print(masks)
+        mask = (pixelmap >= self.threshold).astype(int)
+        return mask
+
+    def anomolous_tiles(self, distances: np.ndarray) -> np.ndarray:
+        """
+        Identify anomalous tiles.  Note that anomaly percentage
+        will generally vary from the pixel mask.
+        """
+        flags = (distances >= self.threshold)#.astype(int)
         if self.verbose >= 1:
             print('Mask stats: %i out of %i tiles are anomalies (%.2f pct)'
                   % (np.sum(masks), np.size(masks),
@@ -283,8 +286,9 @@ class AnomalyDetector:
         test_features = self.reduce_features(test_features)
         test_distances = self.return_distances(test_features)
         self.anomolous_tile_count(test_distances)
-        print(test_metadata)
-        test_pixelmaps = self.return_pixelmaps(test_distances, test_metadata)
+        if output_img_dir is not None:
+            test_pixelmaps = self.return_pixelmaps(
+                test_distances, test_metadata, output_img_dir)
 
 
 if __name__ == '__main__':
