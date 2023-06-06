@@ -39,7 +39,7 @@ class AnomalyDetector:
                  device=None, parallel=True, device_ids=None,
                  cnn_batchsize=1024, pca_variance=0.95,
                  kmeans_clusters=10, kmeans_trials=10, kmeans_neighbors=1,
-                 kmeans_random=None,
+                 kmeans_random=None, threshold_mode='cdf',
                  threshold=None, zscore=1.645, cdf=0.95,
                  verbose=0):
 
@@ -79,6 +79,8 @@ class AnomalyDetector:
             verbose=max(0, verbose - 1), random_state=kmeans_random)
         self.kmeans_neighbors = kmeans_neighbors
 
+        # Threshold
+        self.threshold_mode = threshold_mode
         self.threshold = threshold
         self.zscore = zscore
         self.cdf = cdf
@@ -86,7 +88,7 @@ class AnomalyDetector:
 
     def return_files(self, img_dir: Path) -> list:
         """
-        Takes directory or file path and returns list of file paths
+        Take directory or file path and returns list of file paths.
         """
         if img_dir.is_file():
             file_list = [img_dir]
@@ -174,9 +176,22 @@ class AnomalyDetector:
             distances = np.mean(distances[:, :self.kmeans_neighbors], axis=1)
         return distances
 
+    def set_threshold(self, distances: np.ndarray) -> float:
+        """
+        Set threshold for anomalies.
+        """
+        if self.threshold_mode == 'manual':
+            if self.threshold is None:
+                raise Exception('! Threshold not set.')
+        elif self.threshold_mode == 'zscore':
+            self.set_threshold_zscore(distances)
+        elif self.threshold_mode == 'cdf':
+            self.set_threshold_cdf(distances)
+        return self.threshold
+
     def set_threshold_zscore(self, distances: np.ndarray) -> float:
         """
-        Set threshold for anomalies using z-score
+        Set threshold for anomalies using z-score.
         """
         mean = np.mean(distances)
         stdev = np.std(distances)
@@ -191,7 +206,7 @@ class AnomalyDetector:
 
     def set_threshold_cdf(self, distances: np.ndarray) -> float:
         """
-        Set threshold for anomalies using cumulative distribution function
+        Set threshold for anomalies using cumulative distribution function.
         """
         count = np.size(distances)
         distances = np.sort(distances)
@@ -247,7 +262,7 @@ class AnomalyDetector:
 
     def return_mask(self, pixelmap):
         """
-        Returns binary mask, with zero indiciating normal
+        Return binary mask, with zero indiciating normal
         and one indicating an anomaly.
         """
         mask = (pixelmap >= self.threshold)
@@ -268,7 +283,7 @@ class AnomalyDetector:
     def train(self, train_img_dir: Path, val_img_dir: Path = None,
               auto_threshold=True):
         """
-        Train the model, using folders of training and validation data
+        Train the model, using folders of training and validation data.
         """
         train_files = self.return_files(train_img_dir)
         train_features = self.return_features(train_files)
@@ -280,11 +295,11 @@ class AnomalyDetector:
             val_features = self.return_features(val_files)
             val_features = self.reduce_features(val_features)
             val_distances = self.return_distances(val_features)
-            self.set_threshold_cdf(val_distances)
+            self.set_threshold(val_distances)
 
     def test(self, test_img_dir: Path, output_img_dir: Path = None):
         """
-        Run inference with the model
+        Run inference with the model.
         """
         test_files = self.return_files(test_img_dir)
         test_features, test_metadata = self.return_features(
