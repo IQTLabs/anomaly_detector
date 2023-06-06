@@ -214,7 +214,7 @@ class AnomalyDetector:
             mask = self.return_mask(pixelmap)
             start_idx = end_idx
 
-            img = Image.fromarray(mask, mode='1')
+            img = Image.fromarray(255 * mask.astype(np.uint8), mode='L')
             path = img_dir / meta['path'].name
             img.save(path)
 
