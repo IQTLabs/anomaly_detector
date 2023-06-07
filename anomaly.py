@@ -217,10 +217,11 @@ class AnomalyDetector:
         self.threshold = threshold
         return threshold
 
-    def return_pixelmaps(self, data: np.ndarray, metas: list, img_dir: Path):
+    def return_pixelmaps(self, data: np.ndarray, metas: list, img_dir: Path,
+                         write_mask: bool = True, write_overlay: bool = True):
         """
         Map per-tile data values back to image pixels for multiple images,
-        using averages of overlapping tiles.
+        using averages of overlapping tiles, and save to disk.
         """
         img_dir.mkdir(parents=True, exist_ok=True)
         start_idx = 0
@@ -230,9 +231,21 @@ class AnomalyDetector:
             mask = self.return_mask(pixelmap)
             start_idx = end_idx
 
-            img = Image.fromarray(255 * mask.astype(np.uint8), mode='L')
-            path = img_dir / meta['path'].name
-            img.save(path)
+            if write_mask:
+                img = Image.fromarray(255 * mask.astype(np.uint8), mode='L')
+                path = img_dir / (meta['path'].stem + '_mask'
+                                  + meta['path'].suffix)
+                img.save(path)
+            if write_overlay:
+                overlay_color = np.array([255, 0, 0])
+                overlay_opacity = 0.75
+                img_orig = np.asarray(Image.open(meta['path']).convert('RGB')).astype(float)
+                img_tint = img_orig * 0 + np.expand_dims(np.array(overlay_color), (0, 1))
+                img_over = img_orig + overlay_opacity * np.expand_dims(mask, 2) * (img_tint - img_orig)
+                img_over = Image.fromarray(img_over.astype(np.uint8), mode='RGB')
+                path = img_dir / (meta['path'].stem + '_overlay'
+                                  + meta['path'].suffix)
+                img_over.save(path)
 
     def return_pixelmap(self, data: np.ndarray, meta: dict) -> torch.Tensor:
         """
