@@ -41,6 +41,7 @@ class AnomalyDetector:
                  kmeans_clusters=10, kmeans_trials=10, kmeans_neighbors=1,
                  kmeans_random=None, threshold_mode='cdf',
                  threshold=None, zscore=1.645, cdf=0.95,
+                 overlay_color=(255, 0, 0), overlay_opacity=0.75,
                  verbose=0):
 
         # Tile (i.e., patch) size and stride
@@ -84,6 +85,9 @@ class AnomalyDetector:
         self.threshold = threshold
         self.zscore = zscore
         self.cdf = cdf
+
+        self.overlay_color = overlay_color
+        self.overlay_opacity = overlay_opacity
         self.verbose = verbose
 
     def return_files(self, img_dir: Path) -> list:
@@ -237,12 +241,14 @@ class AnomalyDetector:
                                   + meta['path'].suffix)
                 img.save(path)
             if write_overlay:
-                overlay_color = np.array([255, 0, 0])
-                overlay_opacity = 0.75
-                img_orig = np.asarray(Image.open(meta['path']).convert('RGB')).astype(float)
-                img_tint = img_orig * 0 + np.expand_dims(np.array(overlay_color), (0, 1))
-                img_over = img_orig + overlay_opacity * np.expand_dims(mask, 2) * (img_tint - img_orig)
-                img_over = Image.fromarray(img_over.astype(np.uint8), mode='RGB')
+                img_orig = np.asarray(Image.open(meta['path']).convert(
+                    'RGB')).astype(float)
+                img_tint = img_orig * 0 + np.expand_dims(
+                    np.array(self.overlay_color), (0, 1))
+                img_over = img_orig + self.overlay_opacity * np.expand_dims(
+                    mask, 2) * (img_tint - img_orig)
+                img_over = Image.fromarray(
+                    img_over.astype(np.uint8), mode='RGB')
                 path = img_dir / (meta['path'].stem + '_overlay'
                                   + meta['path'].suffix)
                 img_over.save(path)
