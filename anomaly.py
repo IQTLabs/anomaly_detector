@@ -255,10 +255,14 @@ class AnomalyDetector:
         """
         img_dir.mkdir(parents=True, exist_ok=True)
         start_idx = 0
+        pixels_all = 0
+        pixels_anomaly = 0
         for meta in metas:
             end_idx = start_idx + meta['tiles']
             pixelmap = self.return_pixelmap(data[start_idx:end_idx], meta)
             mask = self.return_mask(pixelmap)
+            pixels_all += meta['height'] * meta['width']
+            pixels_anomaly += np.sum(mask)
             start_idx = end_idx
 
             if write_mask:
@@ -278,6 +282,11 @@ class AnomalyDetector:
                 path = img_dir / (meta['path'].stem + '_overlay'
                                   + meta['path'].suffix)
                 img_over.save(path)
+
+        if self.verbose >= 1:
+            print('Pixel stats: %i out of %i pixels are anomalies (%.2f pct)'
+                  % (pixels_anomaly, pixels_all,
+                     100 * pixels_anomaly / pixels_all))
 
     def return_pixelmap(self, data: np.ndarray, meta: dict) -> torch.Tensor:
         """
