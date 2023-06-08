@@ -41,6 +41,7 @@ class AnomalyDetector:
                  kmeans_clusters=10, kmeans_trials=10, kmeans_neighbors=1,
                  kmeans_random=None, threshold_mode='cdf',
                  threshold=None, zscore=1.645, cdf=0.95,
+                 auto_threshold=True, val_fraction=0.2,
                  overlay_color=(255, 0, 0), overlay_opacity=0.75,
                  verbose=0):
 
@@ -59,9 +60,10 @@ class AnomalyDetector:
         self.cnn = torchvision.models.resnet18(pretrained=True)
         self.cnn_input_height = 320
         self.cnn_input_width = 320
-        self.device = torch.device(device if device is not None
-                                   else 'cuda:0' if torch.cuda.is_available()
-                                   else 'cpu')
+        self.device = torch.device(
+            device if device is not None
+            else 'cuda:0' if torch.cuda.is_available()
+            else 'cpu')
         self.cnn = self.cnn.to(self.device)
         if parallel and torch.cuda.device_count() > 1 \
            and self.device != torch.device('cpu'):
@@ -86,6 +88,9 @@ class AnomalyDetector:
         self.zscore = zscore
         self.cdf = cdf
 
+        # Other
+        self.auto_threshold = auto_threshold
+        self.val_fraction = val_fraction
         self.overlay_color = overlay_color
         self.overlay_opacity = overlay_opacity
         self.verbose = verbose
@@ -102,6 +107,12 @@ class AnomalyDetector:
         if self.verbose >= 2:
             print('return_files:', file_list)
         return file_list
+
+    def divide_files(self, files: list) -> list:
+        """
+        Randomly divide a list of files into two, according to val_fraction
+        """
+        pass
 
     def return_features(self, files: list, metadata: bool = False) -> torch.Tensor:
         """
@@ -299,8 +310,7 @@ class AnomalyDetector:
                      100 * np.sum(flags) / np.size(flags)))
         return flags
 
-    def train(self, train_img_dir: Path, val_img_dir: Path = None,
-              auto_threshold=True):
+    def train(self, train_img_dir: Path, val_img_dir: Path = None):
         """
         Train the model, using folders of training and validation data.
         """
@@ -309,7 +319,7 @@ class AnomalyDetector:
         train_features = self.reduce_features(train_features, fit=True)
         train_distances = self.return_distances(train_features, fit=True)
 
-        if val_img_dir is not None and auto_threshold:
+        if self.auto_threshold:
             val_files = self.return_files(val_img_dir)
             val_features = self.return_features(val_files)
             val_features = self.reduce_features(val_features)
