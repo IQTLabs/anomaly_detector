@@ -246,11 +246,11 @@ class AnomalyDetector:
         self.threshold = threshold
         return threshold
 
-    def return_pixelmaps(self, data: np.ndarray, metas: list, img_dir: Path,
-                         write_mask: bool = True, write_overlay: bool = True):
+    def return_visuals(self, data: np.ndarray, metas: list, img_dir: Path,
+                       write_mask: bool = True, write_overlay: bool = True):
         """
-        Map per-tile data values back to image pixels for multiple images,
-        using averages of overlapping tiles, and save to disk.
+        For each image, map per-tile data values back to image pixels,
+        generate mask, and save mask and overlay to disk.
         """
         img_dir.mkdir(parents=True, exist_ok=True)
         start_idx = 0
@@ -362,7 +362,7 @@ class AnomalyDetector:
         test_distances = self.return_distances(test_features)
         self.anomalous_tiles(test_distances)
         if output_img_dir is not None:
-            test_pixelmaps = self.return_pixelmaps(
+            test_pixelmaps = self.return_visuals(
                 test_distances, test_metadata, output_img_dir)
 
 
