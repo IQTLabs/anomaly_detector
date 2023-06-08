@@ -19,6 +19,7 @@
 import math
 import tqdm
 import torch
+import random
 import torchvision
 import numpy as np
 from PIL import Image
@@ -105,25 +106,26 @@ class AnomalyDetector:
             file_list = [x for x in img_dir.glob('**/*') if x.is_file()]
             file_list = sorted(file_list)
         if self.verbose >= 2:
-            print('return_files:', file_list)
+            print('Files Found:')
+            print([str(x) for x in file_list])
         return file_list
 
     def divide_files(self, files: list) -> tuple:
         """
-        Randomly divide a list of files into two, according to val_fraction
+        Randomly divide a file list into train and validation files
         """
         if len(files) < 2:
             raise Exception('! Not enough files for train and validation')
         randomized_files = random.sample(files, k=len(files))
-        val_count = self.val_fraction * len(files)
+        val_count = round(self.val_fraction * len(files))
         val_count = max(val_count, 1)
         val_count = min(val_count, len(files) - 1)
         val_files = randomized_files[:val_count]
         train_files = randomized_files[val_count:]
         if self.verbose >= 2:
-            print('return_files:')
-            print('Train:', train_files)
-            print('Val:', val_files)
+            print('File Assignments:')
+            print('Train:', [str(x) for x in train_files])
+            print('Val:', [str(x) for x in val_files])
         return train_files, val_files
 
     def return_features(self, files: list, metadata: bool = False) -> torch.Tensor:
