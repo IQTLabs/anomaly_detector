@@ -79,7 +79,7 @@ class AnomalyDetector:
         # K-Means clustering
         self.kmeans = sklearn.cluster.KMeans(
             n_clusters=kmeans_clusters, init='k-means++', n_init=kmeans_trials,
-            verbose=max(0, verbose - 1), random_state=kmeans_random)
+            verbose=max(0, verbose - 2), random_state=kmeans_random)
         self.kmeans_neighbors = kmeans_neighbors
 
         # Threshold
@@ -108,11 +108,23 @@ class AnomalyDetector:
             print('return_files:', file_list)
         return file_list
 
-    def divide_files(self, files: list) -> list:
+    def divide_files(self, files: list) -> tuple:
         """
         Randomly divide a list of files into two, according to val_fraction
         """
-        pass
+        if len(files) < 2:
+            raise Exception('! Not enough files for train and validation')
+        randomized_files = random.sample(files, k=len(files))
+        val_count = self.val_fraction * len(files)
+        val_count = max(val_count, 1)
+        val_count = min(val_count, len(files) - 1)
+        val_files = randomized_files[:val_count]
+        train_files = randomized_files[val_count:]
+        if self.verbose >= 2:
+            print('return_files:')
+            print('Train:', train_files)
+            print('Val:', val_files)
+        return train_files, val_files
 
     def return_features(self, files: list, metadata: bool = False) -> torch.Tensor:
         """
@@ -315,12 +327,15 @@ class AnomalyDetector:
         Train the model, using folders of training and validation data.
         """
         train_files = self.return_files(train_img_dir)
+        if self.auto_threshold and val_img_dir is None:
+            train_files, val_files = self.divide_files(train_files)
         train_features = self.return_features(train_files)
         train_features = self.reduce_features(train_features, fit=True)
         train_distances = self.return_distances(train_features, fit=True)
 
         if self.auto_threshold:
-            val_files = self.return_files(val_img_dir)
+            if val_img_dir is not None:
+                val_files = self.return_files(val_img_dir)
             val_features = self.return_features(val_files)
             val_features = self.reduce_features(val_features)
             val_distances = self.return_distances(val_features)
