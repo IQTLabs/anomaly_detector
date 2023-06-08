@@ -20,6 +20,7 @@ import math
 import tqdm
 import torch
 import random
+import pickle
 import torchvision
 import numpy as np
 from PIL import Image
@@ -324,6 +325,21 @@ class AnomalyDetector:
                      100 * np.sum(flags) / np.size(flags)))
         return flags
 
+    def save(self, path: Path):
+        """
+        Save this model instance to disk
+        """
+        with open(path, 'wb') as output_file:
+            pickle.dump(self, output_file)
+
+    @classmethod
+    def load(self, path: Path):
+        """
+        Load a model instance from disk
+        """
+        with open(path, 'rb') as input_file:
+            return pickle.load(input_file)
+
     def train(self, train_img_dir: Path, val_img_dir: Path = None):
         """
         Train the model, using folders of training and validation data.
@@ -369,4 +385,7 @@ class AnomalyDetector:
 if __name__ == '__main__':
     ad = AnomalyDetector(verbose=1)
     ad.train('../dataset/train', '../dataset/val')
+    ad.save('../dataset/model.pickle')
+
+    ad = AnomalyDetector.load('../dataset/model.pickle')
     ad.test('../dataset/test', '../dataset/output')
