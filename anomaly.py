@@ -328,6 +328,10 @@ class AnomalyDetector:
         """
         Train the model, using folders of training and validation data.
         """
+        train_img_dir = Path(train_img_dir)
+        if val_img_dir is not None:
+            val_img_dir = Path(val_img_dir)
+
         train_files = self.return_files(train_img_dir)
         if self.auto_threshold and val_img_dir is None:
             train_files, val_files = self.divide_files(train_files)
@@ -347,6 +351,10 @@ class AnomalyDetector:
         """
         Run inference with the model.
         """
+        test_img_dir = Path(test_img_dir)
+        if output_img_dir is not None:
+            output_img_dir = Path(output_img_dir)
+
         test_files = self.return_files(test_img_dir)
         test_features, test_metadata = self.return_features(
             test_files, metadata=True)
@@ -360,5 +368,5 @@ class AnomalyDetector:
 
 if __name__ == '__main__':
     ad = AnomalyDetector(verbose=1)
-    ad.train(Path('../dataset/train'), Path('../dataset/val'))
-    ad.test(Path('../dataset/test'), Path('../dataset/output'))
+    ad.train('../dataset/train', '../dataset/val')
+    ad.test('../dataset/test', '../dataset/output')
