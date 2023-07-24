@@ -388,12 +388,3 @@ class AnomalyDetector:
         self.anomalous_tiles(test_distances)
         if output_img_dir is not None:
             self.save_visuals(test_distances, test_metadata, output_img_dir)
-
-
-if __name__ == '__main__':
-    ad = AnomalyDetector(verbose=1)
-    ad.train('../dataset/train', '../dataset/val')
-    ad.save('../dataset/model.pickle')
-
-    ad = AnomalyDetector.load('../dataset/model.pickle')
-    ad.test('../dataset/test', '../dataset/output')
