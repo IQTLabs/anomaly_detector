@@ -19,8 +19,8 @@
 from anomaly import AnomalyDetector
 
 ad = AnomalyDetector()
-ad.train('../dataset/train', '../dataset/val')
-ad.save('../dataset/model.pickle')
+ad.train('dataset/train', 'dataset/val')
+ad.save('model.pickle')
 
-ad = AnomalyDetector.load('../dataset/model.pickle')
-ad.test('../dataset/test', '../dataset/output')
+ad = AnomalyDetector.load('model.pickle')
+ad.test('dataset/test', 'dataset/output')
