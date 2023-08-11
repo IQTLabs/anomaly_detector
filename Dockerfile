@@ -20,3 +20,7 @@ ARG username=anom
 RUN adduser --disabled-password $username
 USER $username
 WORKDIR /home/$username
+
+COPY anomaly.py ./
+COPY example_program.py ./
+COPY example_dataset ./example_dataset
