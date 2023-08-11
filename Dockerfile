@@ -15,7 +15,6 @@ RUN pip3 install \
     torchvision \
     scikit-learn \
     tqdm
-#    jupyter
 
 ARG username=anom
 RUN adduser --disabled-password $username
