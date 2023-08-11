@@ -8,6 +8,5 @@ if [ -z "$(docker images -q $image_name)" ]; then
 fi
 
 nvidia-docker run --name $container_name \
-	      -it \
-	      --user $(id -u):$(id -g) \
+	      -it --shm-size=64g \
 	      $image_name

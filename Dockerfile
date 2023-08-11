@@ -16,11 +16,7 @@ RUN pip3 install \
     scikit-learn \
     tqdm
 
-ARG username=anom
-RUN adduser --disabled-password $username
-USER $username
-WORKDIR /home/$username
-
+WORKDIR /root
 COPY anomaly.py ./
 COPY example_program.py ./
 COPY example_dataset ./example_dataset
